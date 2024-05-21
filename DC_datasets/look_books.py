@@ -25,7 +25,7 @@ sns.histplot(data = books, x = "rating")
 plt.show()
 
 # Set the bin-width:
-sns.histplot(data=books, x="2021", binwidth=1)
+# sns.histplot(data=books, x="2021", binwidth=1)
 
 # Data Validation 
 books.info()
