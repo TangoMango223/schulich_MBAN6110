@@ -1,14 +1,24 @@
-# Faster download and renaming files, and putting the files into the right folders.
+# Data Pipeline to quickly download all research papers
 
 import os
 import csv
 import requests
 import time
+import re
 
 # Specify the path to your CSV file
 csv_file_path = r'C:\Users\chris\OneDrive\Documents\VSCode\schulich_MBAN6110\name.csv'
 retry_attempts = 3  # Number of retry attempts if a download fails
 retry_delay = 5  # Delay in seconds between retry attempts
+failed_downloads = []  # List to store failed download attempts
+
+# Function to sanitize file names by removing special characters and new lines
+# This makes it robust against any issues with naming or new lines, which was my earlier issue.
+def sanitize_filename(file_name):
+    # Remove new line characters
+    file_name = file_name.replace('\n', '').replace('\r', '')
+    # Define a pattern to match invalid characters for file names
+    return re.sub(r'[<>:"/\\|?*\'"]', '', file_name)
 
 # Open and read the CSV file
 with open(csv_file_path, mode='r', newline='', encoding='utf-8') as file:
@@ -21,6 +31,9 @@ with open(csv_file_path, mode='r', newline='', encoding='utf-8') as file:
         file_name = row[0]  # Column A
         file_url = row[1]   # Column B
         category = row[2]   # Column C
+        
+        # Sanitize the file name
+        file_name = sanitize_filename(file_name)
         
         # Ensure the category matches one of the expected values
         if category not in ['Technical_Paper', 'Academic_Paper']:
@@ -48,7 +61,7 @@ with open(csv_file_path, mode='r', newline='', encoding='utf-8') as file:
                         print(f"File size mismatch for {file_name}. Retrying...")
                         continue
 
-                    # Save the file with the name from Column A in the appropriate category folder
+                    # Save the file with the sanitized name in the appropriate category folder
                     with open(file_path, 'wb') as downloaded_file:
                         downloaded_file.write(response.content)
 
@@ -70,5 +83,27 @@ with open(csv_file_path, mode='r', newline='', encoding='utf-8') as file:
 
         else:
             print(f"Failed to download {file_name} in category {category} after {retry_attempts} attempts.")
+            # Add to the list of failed downloads with name, url, and category
+            failed_downloads.append({
+                'File Name': file_name,
+                'URL': file_url,
+                'Category': category
+            })
+
+# Export the failed downloads to a CSV file
+if failed_downloads:
+    failed_csv_path = 'failed_downloads.csv'
+    with open(failed_csv_path, mode='w', newline='', encoding='utf-8') as failed_file:
+        fieldnames = ['File Name', 'URL', 'Category']
+        writer = csv.DictWriter(failed_file, fieldnames=fieldnames)
+
+        writer.writeheader()
+        for failed in failed_downloads:
+            writer.writerow(failed)
+
+    print(f"\nFailed downloads have been saved to {failed_csv_path}.")
+else:
+    print("\nAll files were successfully downloaded.")
 
 print("All files have been processed.")
+
